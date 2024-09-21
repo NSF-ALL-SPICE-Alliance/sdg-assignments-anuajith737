@@ -95,12 +95,20 @@ In the following code, we're:
 ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_4_score)) +
   geom_point()
 ```
+```{r}
+ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_4_score)) + geom_point()
+```
+
 
 Awesome! What if we wanted to color the points/countries based on their region? Let's use the `color` argument to add some color to do so.
 
 ```{r}
 ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_4_score, color = regions_used_for_the_sdr)) +
   geom_point()
+```
+
+```{r}
+ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_4_score, color = regions_used_for_the_sdr)) + geom_point()
 ```
 
 Interpretation:
@@ -125,11 +133,25 @@ Let's create one more scatter plot!
 ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_4_score, color = goal_5_score)) +
   geom_point()
 ```
+```{r}
+ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_4_score, color = goal_5_score)) + geom_point()
+```
+
 
 Cool! It seems that the darkest blue points (countries with the lowest SDG 5 scores) tend to have mid-range or low SDG 3 / SDG 4 scores as well. The lightest blue points (countries with the highest SDG 5 scores) tend to have high SDG 3 / SDG 4 scores as well. However, there are several countries that do not follow this trend.
 
 #### <span style="color: red;">Challenge 1</span>
 Create a scatterplot using two different SDG scores. Then, color the points by using a third SDG score. In a couple of sentences, describe what you see.
+
+```{r}
+ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_6_score)) + geom_point()
+```
+
+```{r}
+ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_6_score, color = regions_used_for_the_sdr)) + geom_point()
+```
+Interpretation: 
+In this scatterplot, the relationship between "Goal 3" (good health and well-being) and "Goal 6" (clean water and sanitation) scores is visualized across different regions. There is a general positive correlation, indicating that countries performing well on health-related SDG indicators also tend to perform well on access to clean water and sanitation. The OECD region tends to cluster in the higher score range, while Sub-Saharan Africa exhibits lower scores.
 
 ### Bar Chart
 
@@ -162,6 +184,10 @@ Now let's make a bar chart from our new dataframe `lac_sdr_data`
 ggplot(lac_sdr_data, aes(x= goal_3_score, y = country)) +
   geom_bar(stat = "identity") 
 ```
+```{r}
+ggplot(lac_sdr_data, aes(x= goal_3_score, y = country)) +
+  geom_bar(stat = "identity") 
+```
 
 #### Faceted Bar Chart
 
@@ -189,6 +215,16 @@ As we can see in the Oceania region, most Countries do not have the necessary da
 
 #### <span style="color: red;">Challenge 2</span>
 Create a new bar chart with countries only from the MENA region. 
+
+```{r}
+lac_sdr_data <- sdr_data %>% 
+  filter(regions_used_for_the_sdr == "MENA")
+```
+```{r}
+ggplot(lac_sdr_data, aes(x= goal_2_score, y = country)) +
+  geom_bar(stat = "identity") 
+```
+
 
 ### Histogram
 
@@ -224,3 +260,14 @@ Countries that fall in the higher end of the Goal 4 spectrum belong to the OECD 
 
 #### <span style="color: red;">Challenge 3</span>
 Make a histogram for a different SDG score. Then, fill by region. In a couple of sentences, describe any interesting trends or what you notice from your new histogram.
+
+```{r}
+ggplot(sdr_data, aes(x = goal_3_score)) +
+  geom_histogram()
+```
+```{r}
+ggplot(sdr_data, aes(x = goal_3_score, fill=regions_used_for_the_sdr)) + 
+  geom_histogram(bins=33, color="blue")
+```
+Interpretation:
+This histogram shows the distribution of "Goal 3" (good health and well-being) scores across different regions as indicated by various colors. The x-axis represents the "Goal 3" score, while the y-axis shows the count of countries within each score range. The histogram reveals that countries in Sub-Saharan Africa tend to have lower scores, mostly below 50. OECD countries dominate the higher score ranges, particularly between 75 and 100. Several East & South Asia and Latin American countries are spread across the middle range.

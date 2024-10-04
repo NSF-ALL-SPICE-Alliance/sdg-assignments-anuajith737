@@ -53,11 +53,18 @@ Read in 2023 Sustainable Development Data with *read_csv()* and *here()*
 ```{r, message=FALSE}
 sdr_data <- read_csv(here("data/SDR-2023-Data.csv"))
 ```
+```{r}
+sdr_data <- read_csv(here("data/SDR-2023-Data.csv"))
+```
 
 Clean column names
 
 ```{r}
 sdr_data <- sdr_data %>% 
+  clean_names()
+```
+```{r}
+sdr_data <- sdr_data %>%
   clean_names()
 ```
 
@@ -68,6 +75,10 @@ Create a subsetted dataframe with only the country column and columns containing
 
 ```{r}
 sdr_data_normalized_scores <- sdr_data %>% 
+  select(country, contains("normalized_score"))
+```
+```{r}
+sdr_data_normalized_scores <- sdr_data %>%
   select(country, contains("normalized_score"))
 ```
 
@@ -96,9 +107,15 @@ How  many cells do we have in the dataframe: sdr_data_normalized_scores?
 ```{r}
 206 * 99
 ```
+```{r}
+206 * 99
+```
 
 How many of those cells are NA?
 
+```{r}
+sum(is.na(sdr_data_normalized_scores))
+```
 ```{r}
 sum(is.na(sdr_data_normalized_scores))
 ```
@@ -114,6 +131,10 @@ Do some columns/variables have more missing data than others? Or are NA's distri
 gg_miss_var(sdr_data_normalized_scores, show_pct = TRUE) +
   theme(axis.text.y = element_text(size = 8)) 
 ```
+```{r,fig.height=10}
+gg_miss_var(sdr_data_normalized_scores, show_pct = TRUE) +
+  theme(axis.text.y = element_text(size = 6))
+```
 
 
 Do some countries have more missing data than others?
@@ -122,6 +143,10 @@ Do some countries have more missing data than others?
 
 ```{r}
 sdr_data_normalized_scores_longer <- sdr_data_normalized_scores %>% 
+  pivot_longer(cols = !country)
+```
+```{r}
+sdr_data_normalized_scores_longer <- sdr_data_normalized_scores %>%
   pivot_longer(cols = !country)
 ```
 
@@ -136,6 +161,13 @@ missing_data_by_country <- sdr_data_normalized_scores_longer %>%
 
 missing_data_by_country
 ```
+```{r}
+missing_data_by_country <- sdr_data_normalized_scores_longer %>%
+  group_by_(country) %>%
+  miss_var_summary() %>%
+  arrange(desc(pct_miss))
+missing_data_by_country
+```
 
 27 countries in the 2023 SDR have NA values for every single normalized score. What are they?
 
@@ -144,12 +176,21 @@ missing_data_by_country
 completely_na_countries  <- missing_data_by_country$country[missing_data_by_country$pct_miss == 100]
 completely_na_countries
 ```
+```{r}
+completely_na_countries <- missing_data_by_country$country[missing_data_by_country$pct_miss == 100]
+completely_na_countries 
+```
+
 Unfortunately, we cannot keep these countries in our analysis due to them not having any data for any of the sdg scores. The challenge of missing data in these countries is important, and needs to be acknowledged in this kind of work
 
 - Let's create a new dataframe (sdr_data_normalized_scores_no_na_countries) without these countries
 
 ```{r}
 sdr_data_normalized_scores_no_na_countries <- sdr_data_normalized_scores %>% 
+  filter(!country %in% completely_na_countries)
+```
+```{r}
+sdr_data_normalized_scores_no_na_countries <- sdr_data_normalized_scores %>%
   filter(!country %in% completely_na_countries)
 ```
 
@@ -163,9 +204,19 @@ gg_miss_var(sdr_data_normalized_scores_no_na_countries, show_pct = TRUE) +
   geom_hline(yintercept = 20, color = "steelblue", linetype = "dashed")
 ```
 
+```{r,fig.height=10}
+gg_miss_var(sdr_data_normalized_scores_no_na_countries, show_pct = TRUE) +
+  theme(axis.text.y = element_text(size = 8)) +
+  geom_hline(yintercept = 20, color = "yellow", linetype = "dashed")
+```
+
 Create a new dataframe that drops the columns/variables with >20% of the data missing
 
 
+```{r}
+sdr_data_normalized_scores_less_na <- sdr_data_normalized_scores_no_na_countries %>%
+  select(where(~ sum(is.na(.))/length(.) <= 0.2))
+```
 ```{r}
 sdr_data_normalized_scores_less_na <- sdr_data_normalized_scores_no_na_countries %>%
   select(where(~ sum(is.na(.))/length(.) <= 0.2))
@@ -183,6 +234,9 @@ Impute the missing data using a random forest method from the missRanger package
 
 
 ```{r message=FALSE, results='hide'}
+sdr_data_imputed <- missRanger(sdr_data_normalized_scores_less_na)
+```
+```{r}
 sdr_data_imputed <- missRanger(sdr_data_normalized_scores_less_na)
 ```
 
@@ -204,6 +258,11 @@ sdr_data_imputed <- sdr_data_imputed %>%
   column_to_rownames(var="country")
 
 ```
+```{r}
+sdr_data_imputed <- sdr_data_imputed %>%
+  remove_rownames %>%
+  column_to_rownames(var = "country")
+```
 
 The function below assists us in determining the number of groups or clusters based on our data
 
@@ -212,10 +271,16 @@ The function below assists us in determining the number of groups or clusters ba
 ```{r}
 fviz_nbclust(sdr_data_imputed, kmeans, method = "silhouette")
 ```
+```{r}
+fviz_nbclust(sdr_data_imputed, kmeans, method = "silhouette")
+```
 
 
 The kmeans() function clusters countries into groups (int this case 2, visualized above) based on 84 SDG scores
 
+```{r}
+k2 <- kmeans(sdr_data_imputed, centers = 2)
+```
 ```{r}
 k2 <- kmeans(sdr_data_imputed, centers = 2)
 ```
@@ -227,6 +292,10 @@ We can visualize the outputs of the kmeans function with fviz_cluster()
 fviz_cluster(k2, data = sdr_data_imputed) +
   theme_minimal()
 ```
+```{r}
+fviz_cluster(k2, data = sdr_data_imputed) +
+  theme_classic()
+```
 
 You can view the countries and their assigned cluster in a dataframe with the code below
 
@@ -235,6 +304,21 @@ You can view the countries and their assigned cluster in a dataframe with the co
 country_clusters <- as.data.frame(k2$cluster)
 ```
 
+```{r}
+country_clusters <- as.data.frame(k2$cluster)
+```
+
+
+```{r}
+k2 <- kmeans(sdr_data_imputed, centers = 3)
+```
+```{r}
+fviz_cluster(k2, data = sdr_data_imputed) +
+  theme_minimal()
+```
+```{r}
+country_clusters <- as.data.frame(k2$cluster)
+```
 
 
 
@@ -251,11 +335,20 @@ rf_matmort <- randomForest(normalized_score_sdg3_matmort ~ .,
                              importance = TRUE)
 ```
 
+```{r}
+rf_matmort <- randomForest(normalized_score_sdg3_matmort ~ .,
+                           data = sdr_data_imputed,
+                           importance = TRUE) 
+```
+
 Our model is relatively accurate with a mean error rate of ~ 10 
 
 The "% Var explained" value of 80.83 indicates that approximately 80.83% of the variance in the target variable (normalized_score_sdg3_matmort) is explained by the predictor variables included in the model.
 
 
+```{r}
+rf_matmort
+```
 ```{r}
 rf_matmort
 ```
@@ -266,9 +359,17 @@ Now we can look at the variables most important in making the predictions
 ```{r}
 importance_df <- as.data.frame(rf_matmort$importance)
 ```
+```{r}
+importance_df <- as.data.frame(rf_matmort$importance)
+```
 
 Let's take the top 10 and graph them
 
+```{r}
+importance_df_top_10 <- importance_df %>%
+  rownames_to_column(var = "variable") %>%
+  slice_max(n = 10, order_by = `%IncMSE`)
+```
 ```{r}
 importance_df_top_10 <- importance_df %>%
   rownames_to_column(var = "variable") %>%
@@ -287,6 +388,15 @@ ggplot(importance_df_top_10, aes(x = `%IncMSE`, y = reorder(variable, `%IncMSE`)
 ```
 
 
+```{r}
+ggplot(importance_df_top_10, aes(x = `%IncMSE`, y = reorder(variable, `%IncMSE`))) +
+  geom_bar(stat = "identity", fill = "yellow", color = "black") +
+  theme_classic() +
+  labs(title = "Most Important Variables Predicting Maternal Mortality",
+       subtitle = "Top 10",
+       y = "SDG Indicator",
+       x = "Feature Importance (% Increase in Mean Squared Error)")
+```
 
 
 
@@ -299,6 +409,9 @@ Lastly, we want to know how these important variables influence the prediction: 
 pdp::partial(rf_matmort, pred.var = "normalized_score_sdg6_sanita", plot = TRUE)
 ```
 
+```{r}
+pdp::partial(rf_matmort, pred.var = "normalized_score_sdg6_sanita", plot = TRUE)
+```
 
 *How to interpret*:
   
@@ -307,7 +420,7 @@ pdp::partial(rf_matmort, pred.var = "normalized_score_sdg6_sanita", plot = TRUE)
   - note the range is only from 77 to 85
 - the x axis is the SDG 6 sanitation score
 - Once the SDG 6 sanitation score reaches 40 the model starts to predict higher maternal mortality scores 
-- Remeber, this is a general trend for all countries in the dataset
+- Remember, this is a general trend for all countries in the dataset
 
 
 Now that we saw how one variable influences the models prediction, how about 2 variables?
@@ -317,6 +430,11 @@ Now that we saw how one variable influences the models prediction, how about 2 v
 ```{r}
 pd <- pdp::partial(rf_matmort, pred.var = c("normalized_score_sdg6_sanita", "normalized_score_sdg3_u5mort"))
 # Default PDP
+plotPartial(pd)
+```
+
+```{r}
+pd <- pdp::partial(rf_matmort, pred.var = c("normalized_score_sdg6_sanita", "normalized_score_sdg3_u5mort"))
 plotPartial(pd)
 ```
 
@@ -334,7 +452,23 @@ plotPartial(pd)
 Edit this code chunk `k2 <- kmeans(sdr_data_imputed, centers = 2)` under the silhouette plot to increase the number of clusters
 
 - Then, run the code chunk `fviz_cluster(k2, data = sdr_data_imputed) + theme_minimal()` to see the new visualization with the increased number of clusters
-  
+
+```{r}
+fviz_nbclust(sdr_data_imputed, kmeans, method = "silhouette")
+```
+
+```{r}
+k4 <- kmeans(sdr_data_imputed, centers = 4)
+```
+```{r}
+fviz_cluster(k4, data = sdr_data_imputed) +
+  theme_minimal()
+```
+```{r}
+country_clusters <- as.data.frame(k4$cluster)
+```
+
+
 #### <span style="color: red;">Challenge 2</span>
 
 Edit this code chunk `rf_matmort <- randomForest(normalized_score_sdg3_matmort ~ ., data = sdr_data_imputed, importance = TRUE)` to predict a different indicator score (any indicator other than normalized_score_sdg3_matmort)
@@ -346,6 +480,39 @@ Edit this code chunk `rf_matmort <- randomForest(normalized_score_sdg3_matmort ~
     - *Hint* make sure to continue replacing rf_matmort with the new name you assign your random forest model
 
 
+```{r}
+rf_literacy <- randomForest(normalized_score_sdg4_literacy ~ .,
+                             data = sdr_data_imputed,
+                             importance = TRUE)
+```
+```{r}
+rf_literacy
+```
+```{r}
+importance_df <- as.data.frame(rf_literacy$importance)
+```
+
+```{r}
+importance_df_top_10 <- importance_df %>%
+  rownames_to_column(var = "variable") %>%
+  slice_max(n = 10, order_by = `%IncMSE`)
+```
+```{r}
+ggplot(importance_df_top_10, aes(x = `%IncMSE`, y = reorder(variable, `%IncMSE`))) +
+  geom_bar(stat = "identity", fill = "green", color = "black") +
+  theme_minimal() +
+  labs(title = "Most Important Variables in Predicting Literacy",
+       subtitle = "Top 10",
+       y = "SDG Indicator",
+       x = "Feature Importance (% Increase in Mean Squared Error)")
+```
+```{r}
+pdp::partial(rf_literacy, pred.var = "normalized_score_sdg3_uhc", plot = TRUE)
+```
+```{r}
+ph <- pdp::partial(rf_literacy, pred.var = c("normalized_score_sdg3_uhc", "normalized_score_sdg3_neonat"))
+plotPartial(ph)
+```
 
 
 

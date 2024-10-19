@@ -1,0 +1,243 @@
+---
+title: "Project_SDG_Analytics"
+author: "Anakha Ajith"
+date: "2024-10-18"
+output: html_document
+---
+Today's Topic
+
+An Analysis of SDG 3
+
+Setup
+
+Load the Packages used in the Analysis
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(janitor)
+library(tidyverse)
+library(naniar)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(ggpubr)
+library(ggcorrplot)
+library(tidyr)
+library(sf)
+library(leaflet)
+library(vembedr)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(missForest)
+library(missRanger)
+library(cluster)
+library(randomForest)
+library(factoextra)
+library(pdp)
+library(tibble)
+```
+
+Read in the Data
+```{r}
+sdr_data <- read_csv(here("data/SDR-2023-Data.csv"))
+```
+Clean column names of the data frame
+```{r}
+sdr_data <- sdr_data %>%
+clean_names()
+```
+The focus of this project is Sustainable Development Goal 3 (SDG 3), which aims to ensure healthy lives and promote well-being for all at all ages. Achieving this goal requires addressing a wide range of health indicators that impact individuals and communities globally.
+Key indicators of SDG 3 include maternal, neonatal, and under-5 mortality rates, the incidence of diseases such as tuberculosis and HIV, and the prevalence of chronic illnesses/ NCDs like cardiovascular disease, cancer, diabetes, and respiratory diseases. Other indicators cover air pollution-related deaths, traffic fatalities, life expectancy, adolescent fertility, and access to skilled health personnel at birth. SDG 3 also monitors the coverage of vaccines, access to universal healthcare (UHC), and subjective well-being through surveys measuring quality of life.
+
+Now, let us create a data frame for SDG 3 data
+```{r}
+sdg3_sdr_data <- sdr_data %>%
+  filter(!is.na(goal_3_score))
+```
+Now let us visualize some of the SDG 3 data 
+```{r,fig.width=12, fig.height=25}
+ggplot(sdg3_sdr_data, aes( x = goal_3_score, y = country)) +
+  geom_bar(stat = "identity", fill = "skyblue")
+```
+```{r}
+ggplot(sdg3_sdr_data, aes(x= goal_3_score, y= country)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~regions_used_for_the_sdr, scales = "free_y") +
+  theme(axis.text.y = element_text(size = 4))
+```
+
+
+The variable shown is the SDG 3 score, which reflects how well countries are performing in health-related areas like healthcare access, life expectancy, and child mortality. The first bar chart provides a global overview of SDG 3 scores, with each bar representing a country, where higher bars indicate better performance. The faceted bar chart groups countries by region, such as East & South Asia, Sub-Saharan Africa, and OECD, highlighting regional disparities in health outcomes. These visualizations make it easy to compare countries and regions, showing both top performers and lagging ones. Sub-Saharan Africa, for example, has lower average scores compared to OECD or Eastern Europe & Central Asia, suggesting challenges in healthcare access. Due to missing data for several countries/territories in Oceania, only two countries from this region (Fiji and Papua New Guinea) are included in the faceted bar chart. This approach highlights where policy focus is needed, especially in under-performing regions. Sub-Saharan African countries, for instance, may need more healthcare investment to improve their scores. The visualizations emphasize the global and regional gaps in health, reinforcing the need for targeted policies to achieve SDG 3.
+
+Now let us make an interactive visualization of Goal 3 scores using the ggplot() function from the plotly package.  
+
+```{r}
+goal_3_histogram <- ggplot(sdg3_sdr_data, aes(x = goal_3_score, fill = regions_used_for_the_sdr)) +
+  geom_histogram(bins = 15) +
+  theme_minimal() +
+  scale_fill_viridis_d() +
+  labs( title = "Distribution of SDG 3 Scores", x = "SDG 3 Score", y = "Number of countries", fill = "Region")
+ggplotly(goal_3_histogram)
+```
+
+The histogram shows the distribution of SDG 3 scores across different regions. The x-axis indicates the SDG 3 score, which reflects a country's performance in achieving health-related goals, while the y-axis shows the number of countries in each score range.
+Each region is color-coded, making it easy to identify the distribution of scores by region, such as Sub-Saharan Africa (yellow), OECD (green), and East & South Asia (dark blue).The histogram highlights clusters of countries with similar scores, showing that a significant number of countries in OECD regions score above 75, indicating strong performance in healthcare and well-being. In contrast, Sub-Saharan Africa has many countries scoring below 50, suggesting challenges in healthcare infrastructure and outcomes.The East & South Asia region has a more diverse spread of scores, with some countries performing well (above 75) and others scoring lower, reflecting the region’s mixed healthcare outcomes. The histogram provides valuable insights into regional disparities in SDG 3 performance, making it clear that wealthier regions like OECD perform better, while regions like Sub-Saharan Africa face greater challenges.
+
+
+Now, let us focus on Goal 3 scores in the East & South Asia (ESA) region. To do this, we will filter the data by region to extract only the relevant subset.
+
+First, we create a data frame that contains all SDG-related data for countries in the ESA region. We will name this data frame esa_sdr_data.
+
+```{r}
+esa_sdr_data <- sdr_data %>%
+  filter(regions_used_for_the_sdr == "East & South Asia")
+```
+
+Next, we create a new data frame called esa_sdg3_data. This data frame will contain only the countries from the East & South Asia region and only those with valid Goal 3 scores.
+
+```{r}
+esa_sdg3_data <- sdg3_sdr_data %>%
+  filter(regions_used_for_the_sdr == "East & South Asia") %>%
+  select(country, contains("sdg3"))
+```
+
+Now let’s make an interactive histogram for ESA’s Goal 3 scores
+
+```{r}
+goal_3_esa_histogram <- ggplot(esa_sdr_data, aes(x = goal_3_score, fill = country)) +
+  geom_histogram() +
+  theme_minimal() +
+  scale_fill_viridis_d() +
+  labs( title = "SDG 3 Scores in East & South Asia", x= "SDG 3 Score", y= "Number of countries", fill = "Country")
+ggplotly(goal_3_esa_histogram)
+```
+
+This histogram shows the distribution of SDG 3 scores for countries in the East & South Asia (ESA) region, with each bar representing the number of countries within a specific score range. The x-axis displays the SDG 3 score, which measures how well countries are performing in health-related areas, while the y-axis shows the number of countries with scores in each range. A key observation is that most ESA countries score between 60 and 80, indicating moderate progress toward achieving health and well-being goals.However, only a few countries, such as Singapore, China, Brunei, and Maldives, score above 80, suggesting they have relatively strong healthcare systems and well-being outcomes compared to their neighbors. In contrast, Pakistan, Myanmar, and a few others have lower scores, hinting at healthcare challenges such as limited access to quality services, lower life expectancy, or higher disease burden. This visualization highlights the variability in health performance within the ESA region, showing a mix of both strong and weak performers, and suggests the need for region-specific strategies to address the disparities and further improve health outcomes.
+
+Let us create an interactive scatter plot with Goal 3 and Goal 6 scores to identify if there are any patterns or clusters in the data.
+
+```{r}
+goals_3and6_scatterplot <- ggplot(sdr_data, aes(x = goal_3_score, y = goal_6_score, colour = regions_used_for_the_sdr)) +
+  geom_point() +
+  theme_minimal() +
+  scale_fill_viridis_d() +
+  labs(title = "SDG 3 and SDG 6 Scores", x ="SDG 3 Score", y ="SDG 6 Score", fill = "Region")
+ggplotly(goals_3and6_scatterplot)
+
+```
+This scatter plot visualizes the relationship between SDG 3 (Good Health and Well-being) and SDG 6 (Clean Water and Sanitation) scores for countries across different regions.Each point represents a country, with the x-axis showing the SDG 3 score and the y-axis displaying the SDG 6 score, allowing us to explore how health outcomes correlate with access to clean water and sanitation.There is a positive correlation between SDG 3 and SDG 6 scores, indicating that countries with better health outcomes tend to also have better access to clean water and sanitation. OECD countries tend to appear in the upper right quadrant, meaning they perform well in both health and sanitation, suggesting strong investments in public health and infrastructure. In contrast, Sub-Saharan African countries are spread across the lower half of the plot, with many scoring below 50 on both axes, highlighting significant challenges in both health and water access. East & South Asian countries show a wider spread, with some performing well in health but still facing issues in water and sanitation, underscoring the diversity of outcomes within the region. This plot emphasizes the interdependence of health and water access, suggesting that improving access to clean water and sanitation may positively impact health outcomes, especially in under-performing regions like Sub-Saharan Africa.
+We use a scatter plot for this visualization because it allows us to clearly see the correlation between SDG 3 and SDG 6, while also highlighting regional clusters and outliers. This makes it easy to identify which regions perform well in both areas and which struggle in both.
+
+Now, let us look at the relationship between these two variables in the ESA region.
+```{r}
+goals_3and6_esa_scatterplot <- ggplot(esa_sdr_data, aes(x = goal_3_score, y = goal_6_score, colour = country)) +
+  geom_point() +
+  theme_minimal() +
+  scale_fill_viridis_d() +
+  labs(title = "SDG 3 and SDG 6 Scores in East & South Asia", x ="SDG 3 Score", y ="SDG 6 Score", fill = "Country")
+ggplotly(goals_3and6_esa_scatterplot)
+```
+
+This scatter plot shows the relationship between SDG 3 and SDG 6 for countries in the East & South Asia region. Countries like Singapore and Maldives score high on both SDGs, indicating strong health systems and water infrastructure, while others like Pakistan and India score lower, reflecting challenges in these areas. The plot reveals that while many countries cluster around moderate scores, a few countries, like Brunei and Srilanka, perform better in health (SDG 3) but still have room for improvement in water and sanitation (SDG 6). 
+
+Now that we have the scatter plot, let us check if these 2 goal scores are correlated - with the help of statistics.
+```{r}
+ggplot(sdr_data, aes(x = goal_3_score, y = goal_6_score)) + geom_point() + stat_cor() + theme_minimal() + geom_smooth()
+```
+```{r}
+sdg_3and6_correlation_plot <- ggplot(sdr_data, aes(x = goal_3_score, 
+                     y = goal_6_score, label = country)) +
+  geom_point() +
+  geom_smooth() +
+  stat_cor() +
+  theme_minimal()
+labs(title = "SDG 3 and SDG 6 Relationship",
+       x = "SDG 3 Score",  
+       y = "SDG 6 Score") 
+ggplotly(sdg_3and6_correlation_plot)
+```
+
+Based on the scatter plot of SDG 3 and SDG 6 scores, there appears to be a strong positive correlation (R = 0.76) between the two goals. This suggests that countries with higher health and well-being scores also tend to have better access to clean water and sanitation. The correlation may indicate that better water and sanitation are essential for preventing disease and improving quality of life. Countries with relatively low SDG 6 scores but higher SDG 3 scores (or vice versa) could be considered outliers. For example, Malta, with an SDG 3 score of 91.2, has only scored 48.7 in Goal 6. Iceland scored only 59.8 on SDG 6, even though it had an impressive 96.4 on SDG 3. Similarly, countries like Qatar, Oman, Kuwait, the UAE, and Brunei also exhibit high health and well-being scores despite comparatively lower access to clean water and sanitation.
+
+Mapping SDG 3 Scores
+We will create interactive maps using the leaflet package.
+To achieve this, we need data on countries and their physical locations on the globe, which is provided by the rnaturalearth package.
+We use the ne_countries() function to access country codes and assign it to a data frame called world.
+
+```{r}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+```
+Although the world data frame contains many columns, we only need three:
+name_long: Country name
+iso_a3: ISO3 codes (three-letter country codes)
+geometry: Describes the country’s physical location on the globe
+To keep the data frame concise, we select only these columns
+
+```{r}
+world <- world %>%
+  select(name_long, iso_a3, geometry)
+```
+To join the SDR data with the world data, we need to ensure the country code columns match.
+In the world data frame, the column is called iso_a3.
+In the sdr_data data frame, it is called country_code_iso3.
+We first rename the column in sdr_data to match the world data frame
+
+```{r}
+colnames(sdr_data)[which(colnames(sdr_data) == "country_code_iso3")] <- "iso_a3"
+```
+
+Next, we join the two data frames using the left_join() function.
+We’ll store the result in a new data frame called sdr_data_world_joined
+
+```{r}
+sdr_data_world_joined <- left_join(sdr_data, world, by = "iso_a3")
+```
+We can check the class of sdr_data_world_joined using the class() function
+```{r}
+class(sdr_data_world_joined)
+```
+Currently, it is a regular data frame. However, to work with geospatial libraries like leaflet, we need to convert it to an sf object (which stands for simple features) with the st_as_sf(). This allows leaflet to interpret the geometry column for mapping.
+
+```{r}
+library(sf)
+sdr_data_world_joined <- st_as_sf(sdr_data_world_joined)
+```
+Setting the Coordinate Reference System (CRS)
+For mapping with leaflet, we need to use an appropriate coordinate reference system (CRS).
+We’ll use WGS84, a common CRS for mapping geographic data.
+
+```{r}
+sdr_data_world_joined <- st_transform(sdr_data_world_joined, "+proj=longlat +datum=WGS84")
+```
+
+Creating the Map with leaflet
+Now, let’s map the SDG 3 scores. The mytext part of the code defines what will appear when we hover over a country.
+We generate the map using the leaflet() function, which reads from the sdr_data_world_joined data frame.
+We specify the Goal 3 scores in the color = argument to color the countries according to their scores
+
+```{r}
+mytext <- paste(
+  "Country: ", sdr_data_world_joined$country, "<br/>", 
+  "Goal 3 Score: ", round(sdr_data_world_joined$goal_3_score, 2), 
+  sep = ""
+) %>%
+  lapply(htmltools::HTML)
+
+leaflet(sdr_data_world_joined) %>% 
+  addTiles() %>% 
+  setView(lat = 10, lng = 0, zoom = 2) %>%
+  addPolygons(
+    stroke = FALSE, 
+    fillOpacity = 0.5, 
+    smoothFactor = 0.5, 
+    color = ~colorQuantile("RdYlBu", goal_3_score)(goal_3_score), 
+    label = mytext)
+```
+
+This choropleth map visualizes the distribution of SDG 3 scores across countries, highlighting global disparities in health outcomes and well-being. Darker shades of blue represent countries with higher SDG 3 scores, indicating strong healthcare systems, higher life expectancy, and better access to medical services. In contrast, countries shaded in red or orange have lower scores, reflecting challenges in achieving good health, such as higher child mortality, poor access to healthcare, or higher disease burden. Sub-Saharan Africa stands out with a concentration of low scores, underscoring the region's persistent challenges with health infrastructure and disease prevention. OECD countries (e.g., North America and Europe) perform well, appearing in darker shades, suggesting that wealthier nations have invested in more effective healthcare systems. Several Asian countries, including parts of South Asia, show moderate scores, reflecting some progress but also remaining gaps, particularly in access to health services and sanitation. Oceania and parts of Latin America display a mixed pattern, with some countries performing moderately well and others facing significant health challenges.
+This visualization is effective because it clearly communicates geographic patterns in health outcomes, making it easy to identify regions that are performing well and those that need attention. Also, it provides a global overview at a glance, allowing comparisons across regions and encouraging insights into the intersection between health, geography, and socio-economic development.
+
+You can explore more interactive maps based on the SDG data from this valuable resource [Sustainable Development Report] (https://dashboards.sdgindex.org/map)
+
+
